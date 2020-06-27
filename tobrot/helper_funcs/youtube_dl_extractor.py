@@ -19,8 +19,12 @@ import os
 import pyrogram
 logging.getLogger("pyrogram").setLevel(logging.WARNING)
 
+from tobrot import (
+    DEF_THUMB_NAIL_VID_S
+)
 
-async def extract_youtube_dl_formats(url, user_working_dir):
+
+async def extract_youtube_dl_formats(url, yt_dl_user_name, yt_dl_pass_word, user_working_dir):
     command_to_exec = [
         "youtube-dl",
         "--no-warnings",
@@ -31,6 +35,14 @@ async def extract_youtube_dl_formats(url, user_working_dir):
     if "hotstar" in url:
         command_to_exec.append("--geo-bypass-country")
         command_to_exec.append("IN")
+    #
+    if yt_dl_user_name is not None:
+        command_to_exec.append("--username")
+        command_to_exec.append(yt_dl_user_name)
+    if yt_dl_pass_word is not None:
+        command_to_exec.append("--password")
+        command_to_exec.append(yt_dl_pass_word)
+
     LOGGER.info(command_to_exec)
     process = await asyncio.create_subprocess_exec(
         *command_to_exec,
@@ -67,10 +79,12 @@ async def extract_youtube_dl_formats(url, user_working_dir):
             json.dump(response_json, outfile, ensure_ascii=False)
         # logger.info(response_json)
         inline_keyboard = []
-        thumb_image = "http://archive.is/wrODY/683dbe9224405f0f889018b84e425b6b05bfc350.jpg"
+        #
+        thumb_image = DEF_THUMB_NAIL_VID_S
+        #
         for current_r_json in response_json:
             #
-            thumb_image = current_r_json["thumbnail"]
+            thumb_image = current_r_json.get("thumbnail", thumb_image)
             #
             duration = None
             if "duration" in current_r_json:
@@ -81,6 +95,10 @@ async def extract_youtube_dl_formats(url, user_working_dir):
                     format_string = formats.get("format_note")
                     if format_string is None:
                         format_string = formats.get("format")
+                    # don't display formats, without audio
+                    # https://t.me/c/1434259219/269937
+                    if "DASH" in format_string.upper():
+                        continue
                     format_ext = formats.get("ext")
                     approx_file_size = ""
                     if "filesize" in formats:
